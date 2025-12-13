@@ -1,0 +1,187 @@
+from tkinter import*
+from tkinter import ttk
+from tkinter import messagebox
+import tools
+import helper
+class Customer:
+    def __init__(self):
+        self.window  = Tk()
+        self.window.state('zoomed')
+        self.window.config(bg="#639ba9")
+        self.window.title("Electricity Bill Payment System")
+        self.lblTitle = Label(text="Customer Detail", font=("Engravers MT", 20, "bold"), bg="#639ba9")
+        self.lblTitle.grid(row=0, column=0, columnspan=2, pady=(20, 50), padx=(100,0))
+        self.tree = ttk.Treeview(self.window, columns=("ID", "Full Name", "Phone", "Address", "Connection date"),show="headings", height=15)
+
+        style = ttk.Style()
+        style.configure("Treeview.Heading", font= ("Segoe UI", 8, "bold"))
+
+        f_style = ttk.Style()
+        f_style.configure("Custom.TFrame", background="#639ba9")
+
+        self.panel = ttk.Frame(style="Custom.TFrame")
+
+        self.panel.grid(row=1, column=1, padx=(50, 0))
+        self.lbl_id = Label(self.panel,text="User ID: ", bg="#639ba9")
+        self.lbl_id.grid(row=0, column=0, pady=10)
+        self.entry_id = Entry(self.panel, width=30)
+        self.entry_id.grid(row=0, column=1, ipady=4, columnspan=2)
+        self.lbl_name = Label(self.panel,text="Full Name: ", bg="#639ba9")
+        self.lbl_name.grid(row=1, column=0, pady=10)
+        self.entry_name = Entry(self.panel,width=30)
+        self.entry_name.grid(row=1, column=1, ipady=4, columnspan=2)
+        self.lbl_phone = Label(self.panel,text="Phone: ", bg="#639ba9")
+        self.lbl_phone.grid(row=2, column=0, pady=10)
+        self.entry_phone = Entry(self.panel,width=30)
+        self.entry_phone.grid(row=2, column=1, ipady=4, columnspan=2)
+        self.lbl_address = Label(self.panel,text="Address: ", bg="#639ba9")
+        self.lbl_address.grid(row=3, column=0, pady=10)
+        self.entry_address = Entry(self.panel,width=30)
+        self.entry_address.grid(row=3, column=1, ipady=4, columnspan=2)
+        self.lbl_date = Label(self.panel,text="Connection date: ", bg="#639ba9")
+        self.lbl_date.grid(row=4, column=0, pady=10)
+        self.entry_date = Entry(self.panel,width=30)
+        self.entry_date.grid(row=4, column=1, ipady=4, columnspan=2)
+        self.btn_delete = Button(self.panel,text="Delete", command=self.delete, width=8, bg="#990000", fg="white")
+        self.btn_delete.grid(row=5, column=0, sticky="e")
+        self.btn_add = Button(self.panel,text="Add", width=8, command=self.add, bg="green", fg="white")
+        self.btn_add.grid(row=5, column=1, sticky="e")
+        self.btn_update = Button(self.panel, text="Update", width=8, command=self.update, bg="green", fg="white")
+        self.btn_update.grid(row=5, column=2, sticky="e", pady=20)
+        self.table()
+        self.insert()
+        self.add_menu()
+        self.window.mainloop()
+
+    #main table
+    def table(self):
+        self.tree.heading("ID", text="User ID")
+        self.tree.heading("Full Name", text="Full Name")
+        self.tree.heading("Phone", text="Phone")
+        self.tree.heading("Address", text="Address")
+        self.tree.heading("Connection date", text="Connection date")
+        self.tree.column("ID", width=70, anchor="center")
+        self.tree.column("Full Name", width=180, anchor="center")
+        self.tree.column("Phone", width=120, anchor="center")
+        self.tree.column("Address", width=160, anchor="center")
+        self.tree.column("Connection date", width=150, anchor="center")
+        self.tree.grid(row=1, column=0, padx=(130, 0))
+        self.tree.bind("<<TreeviewSelect>>", self.get_selected_row)
+
+    #insert data from database
+    def insert(self):
+        con = tools.connect()
+        cursor = con.cursor()
+        sql = "SELECT * from customer;"
+        cursor.execute(sql)
+        result = cursor.fetchall()
+        for row in result:
+            self.tree.insert("", 0, values=row)
+
+    # get the values of selected row
+    def get_selected_row(self,event):
+        selected_item = self.tree.focus()
+        value = self.tree.item(selected_item, "values")
+        if len(value) > 0:
+            self.clear()
+            self.entry_id.insert(END, value[0])
+            self.entry_name.insert(END,value[1])
+            self.entry_phone.insert(END, value[2])
+            self.entry_address.insert(END, value[3])
+            self.entry_date.insert(END, value[4])
+
+
+    def delete(self):
+        user_id = self.entry_id.get()
+        if len(user_id) > 0:
+            confirm = messagebox.askyesno("Confirmation", "Do you want to delete this record?")
+            if confirm:
+                try:
+                   con = tools.connect()
+                   sql = f"delete from customer where cust_ID = {int(user_id)};"
+                   cursor = con.cursor()
+                   cursor.execute(sql)
+                   con.commit()
+                   self.clear()
+                   for item in self.tree.get_children():
+                       self.tree.delete(item)
+                   self.insert()
+                   self.lbl_name.focus()
+                except Exception as e:
+                    messagebox.showerror("Error",f"Could not delete this record {str(e).split(":")[-1].strip()}")
+
+    def add(self):
+        u_id = int(self.entry_id.get())
+        name = self.entry_name.get()
+        phone = self.entry_phone.get()
+        address = self.entry_address.get()
+        date = self.entry_date.get()
+        sql = f"insert into customer values ({u_id}, '{name}', '{phone}', '{address}', '{date}');"
+        try:
+            con = tools.connect()
+            cursor = con.cursor()
+            cursor.execute(sql)
+            con.commit()
+            for item in self.tree.get_children():
+                self.tree.delete(item)
+            self.insert()
+            self.clear()
+            self.lbl_name.focus()
+        except Exception as e:
+            messagebox.showerror("Error", f"Could not add {str(e).split(":")[-1].strip()}")
+
+    def update(self):
+        selected_item = self.tree.focus()
+        values = self.tree.item(selected_item, "values")
+        table_id = int(values[0])
+        u_id = int(self.entry_id.get())
+        name = self.entry_name.get()
+        phone = self.entry_phone.get()
+        address = self.entry_address.get()
+        date = self.entry_date.get()
+        sql = f"update customer set cust_ID={u_id},Full_name='{name}',phone='{phone}' ,address='{address}',connect_date='{date}' where cust_ID={table_id};"
+        try:
+            con = tools.connect()
+            cursor = con.cursor()
+            cursor.execute(sql)
+            con.commit()
+            for item in self.tree.get_children():
+                self.tree.delete(item)
+            self.insert()
+            self.clear()
+            self.lbl_name.focus()
+        except Exception as e:
+            messagebox.showerror("Error", f"Could not update this record {str(e).split(":")[-1].strip()}")
+
+    def clear(self):
+        self.entry_id.delete(0, END)
+        self.entry_name.delete(0, END)
+        self.entry_phone.delete(0, END)
+        self.entry_address.delete(0, END)
+        self.entry_date.delete(0, END)
+
+    def add_menu(self):
+        menu = Menu(self.window)
+        menu.add_cascade(label="Customer")
+        menu.add_cascade(label="Meter", command=self.meter)
+        menu.add_cascade(label="Meter Usage", command=self.meter_usage)
+        menu.add_cascade(label="Bill", command=self.bill)
+        menu.add_cascade(label="Payment", command=self.payment)
+        self.window.config(menu=menu)
+
+
+    def meter(self):
+        self.window.destroy()
+        helper.meter()
+
+    def meter_usage(self):
+        self.window.destroy()
+        helper.meter_usage()
+
+    def bill(self):
+        self.window.destroy()
+        helper.bill()
+
+    def payment(self):
+        self.window.destroy()
+        helper.payment()
